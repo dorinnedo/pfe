@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 class Prediction {
   final String? description;
@@ -227,7 +228,7 @@ class _HomeClientState extends State<HomeClient> {
     setState(() => _isSearching = true);
 
     try {
-      final apiKey = 'AIzaSyDF_5GGZiW8qoKfWHzPIfe3qi5JpbIsI8k';
+      final apiKey = 'AIzaSyACYydOW1dwRcangSbJo8OAACG2SNv1XlE';
       final baseUrl = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
       
       String locationBias = '';
@@ -236,12 +237,13 @@ class _HomeClientState extends State<HomeClient> {
       }
 
       final encodedQuery = Uri.encodeComponent(query);
-      final url = '$baseUrl?input=$encodedQuery&types=address,establishment&language=fr&components=country:fr$locationBias&key=$apiKey';
+      final url = '$baseUrl?input=$encodedQuery&types=geocode|establishment&language=fr$locationBias&key=$apiKey';
       
       print('Search URL: $url');
       
       final response = await http.get(Uri.parse(url));
       print('Search response status: ${response.statusCode}');
+      print('Search response headers: ${response.headers}');
       print('Search response body: ${response.body}');
 
       if (response.statusCode == 200) {
@@ -260,12 +262,18 @@ class _HomeClientState extends State<HomeClient> {
           });
         } else {
           print('API Error: ${data['status']} - ${data['error_message'] ?? 'No error message'}');
+          print('Full API Response: $data');
           setState(() {
             _predictions = [];
             _isSearching = false;
           });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${data['error_message'] ?? data['status']}')),
+          );
         }
       } else {
+        print('HTTP Error: ${response.statusCode}');
+        print('Response body: ${response.body}');
         throw Exception('Failed to load places: ${response.statusCode}');
       }
     } catch (e) {
