@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "719791136656",
+    "project_id": "speedy-d69cc",
+    "storage_bucket": "speedy-d69cc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:719791136656:android:728634934e7033d7a49d15",
+        "android_client_info": {
+          "package_name": "com.example.speedy2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "719791136656-495c2khdln9033hm8br1pivgno20ndni.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.speedy2",
+            "certificate_hash": "d18749f0a6c16ff238e24bde2bb3a5148ef9da10"
+          }
+        },
+        {
+          "client_id": "719791136656-bo8lh661aofpgbpttovvci1g7hkilvha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdtpnmdyjJhgeBndZUU5z925yPRRcAMpQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "719791136656-bo8lh661aofpgbpttovvci1g7hkilvha.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
