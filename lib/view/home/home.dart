@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeLivreur extends StatefulWidget {
   const HomeLivreur({super.key});
@@ -108,20 +110,64 @@ class _HomeLivreurState extends State<HomeLivreur> {
 
     setState(() => _isNavigating = true);
 
-    // Create a polyline between current position and destination
-    setState(() {
-      _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('route'),
-          color: Colors.blue,
-          width: 5,
-          points: [
-            _currentPosition!,
-            LatLng(destination.latitude, destination.longitude),
-          ],
-        ),
+    try {
+      final apiKey = 'AIzaSyACYydOW1dwRcangSbJo8OAACG2SNv1XlE';
+      final origin = '${_currentPosition!.latitude},${_currentPosition!.longitude}';
+      final dest = '${destination.latitude},${destination.longitude}';
+      
+      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$dest&mode=driving&key=$apiKey';
+      
+      print('Directions URL: $url');
+      
+      final response = await http.get(Uri.parse(url));
+      print('Directions response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final routes = data['routes'] as List;
+          if (routes.isNotEmpty) {
+            final points = routes[0]['overview_polyline']['points'];
+            final List<LatLng> decodedPoints = _decodePolyline(points);
+            
+            setState(() {
+              _polylines.clear();
+              _polylines.add(
+                Polyline(
+                  polylineId: const PolylineId('route'),
+                  color: Colors.blue,
+                  width: 5,
+                  points: decodedPoints,
+                ),
+              );
+            });
+
+            // Fit the map to show the entire route
+            if (_controller.isCompleted) {
+              final controller = await _controller.future;
+              controller.animateCamera(
+                CameraUpdate.newLatLngBounds(
+                  _getBoundsForPolyline(decodedPoints),
+                  50, // padding
+                ),
+              );
+            }
+          }
+        } else {
+          print('Directions API Error: ${data['status']} - ${data['error_message'] ?? 'No error message'}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error getting directions: ${data['status']}')),
+          );
+        }
+      } else {
+        throw Exception('Failed to load directions: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Navigation error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting directions: $e')),
       );
-    });
+    }
 
     // Start location updates
     Geolocator.getPositionStream(
@@ -136,6 +182,55 @@ class _HomeLivreurState extends State<HomeLivreur> {
         });
       }
     });
+  }
+
+  // Helper method to decode the polyline points
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> poly = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      final p = LatLng(lat / 1E5, lng / 1E5);
+      poly.add(p);
+    }
+    return poly;
+  }
+
+  // Helper method to get bounds for the polyline
+  LatLngBounds _getBoundsForPolyline(List<LatLng> points) {
+    double? minLat, maxLat, minLng, maxLng;
+    
+    for (var point in points) {
+      if (minLat == null || point.latitude < minLat) minLat = point.latitude;
+      if (maxLat == null || point.latitude > maxLat) maxLat = point.latitude;
+      if (minLng == null || point.longitude < minLng) minLng = point.longitude;
+      if (maxLng == null || point.longitude > maxLng) maxLng = point.longitude;
+    }
+    
+    return LatLngBounds(
+      southwest: LatLng(minLat!, minLng!),
+      northeast: LatLng(maxLat!, maxLng!),
+    );
   }
 
   Future<void> _switchDestination() async {
